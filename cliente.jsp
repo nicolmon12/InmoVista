@@ -490,6 +490,7 @@ if (tab == null || tab.isEmpty()) tab = "dashboard";
   <button class="cl-sb-lnk" onclick="gt('solicitudes')" id="sl-solicitudes"><i class="fas fa-file-alt"></i> Mis Solicitudes</button>
   <button class="cl-sb-lnk" onclick="gt('agendar')" id="sl-agendar"><i class="fas fa-calendar-plus"></i> Agendar Visita</button>
   <div class="cl-sb-sec">Cuenta</div>
+  <button class="cl-sb-lnk" onclick="gt('documentos')" id="sl-documentos"><i class="fas fa-folder-open"></i> Mis Documentos</button>
   <button class="cl-sb-lnk" onclick="gt('perfil')" id="sl-perfil"><i class="fas fa-user-cog"></i> Mi Perfil</button>
   <div class="cl-sb-bot">
     <a href="${ctx}/logout.jsp" class="cl-sb-lnk" style="color:rgba(231,76,60,0.7);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
@@ -504,6 +505,7 @@ if (tab == null || tab.isEmpty()) tab = "dashboard";
     <button class="cl-mb" id="mb-solicitudes" onclick="gt('solicitudes')"><i class="fas fa-file-alt"></i> Solicitudes</button>
     <button class="cl-mb" id="mb-favoritos"  onclick="gt('favoritos')"><i class="fas fa-heart"></i> Favoritos</button>
     <button class="cl-mb" id="mb-agendar"    onclick="gt('agendar')"><i class="fas fa-plus"></i> Agendar</button>
+    <button class="cl-mb" id="mb-documentos" onclick="gt('documentos')"><i class="fas fa-folder"></i> Docs</button>
     <button class="cl-mb" id="mb-perfil"     onclick="gt('perfil')"><i class="fas fa-user"></i> Perfil</button>
   </div>
 
@@ -825,6 +827,64 @@ if (tab == null || tab.isEmpty()) tab = "dashboard";
       </div>
     </div>
 
+
+    <!-- ══ PANEL DOCUMENTOS ══ -->
+    <div class="cl-pane" id="pane-documentos">
+      <div class="cl-phdr">
+        <div>
+          <div class="cl-ptitle"><i class="fas fa-folder-open me-2" style="color:var(--gold,#c9a84c);"></i>Mis Documentos</div>
+          <div class="cl-psub">Sube tus papeles de compra o arriendo</div>
+        </div>
+      </div>
+
+      <div class="cl-card mb-4">
+        <div class="cl-ct"><i class="fas fa-cloud-upload-alt me-2"></i>Subir Nuevo Documento</div>
+        <div id="docAlerta" style="display:none;margin:12px 0;padding:12px 16px;border-radius:10px;font-size:.88rem;"></div>
+        <div class="row g-3 mt-1">
+          <div class="col-md-6">
+            <label class="cl-fl">Tipo de Documento</label>
+            <select id="docTipo" class="cl-fc">
+              <option value="">Selecciona...</option>
+              <option value="cedula">Cédula de Ciudadanía</option>
+              <option value="comprobante">Comprobante de Ingresos</option>
+              <option value="desprendible">Desprendible de Pago</option>
+              <option value="extracto">Extracto Bancario</option>
+              <option value="declaracion_renta">Declaración de Renta</option>
+              <option value="carta_laboral">Carta Laboral</option>
+              <option value="contrato">Contrato / Promesa</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="cl-fl">Propiedad (opcional)</label>
+            <input type="text" id="docPropiedad" class="cl-fc" placeholder="Ej: Casa en Cabecera">
+          </div>
+          <div class="col-12">
+            <label class="cl-fl">Archivo (PDF, JPG, PNG — máx 5MB)</label>
+            <div id="docDropZone" style="border:2px dashed rgba(201,168,76,.4);border-radius:12px;padding:28px;text-align:center;cursor:pointer;background:rgba(201,168,76,.02);transition:all .3s;position:relative;">
+              <input type="file" id="docArchivo" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                     style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;">
+              <i class="fas fa-file-upload" style="font-size:1.8rem;color:rgba(201,168,76,.5);display:block;margin-bottom:8px;"></i>
+              <p style="margin:0;font-size:.84rem;color:#888;">Arrastra aquí o <strong style="color:var(--gold,#c9a84c);">haz clic para seleccionar</strong></p>
+              <div id="docFileName" style="margin-top:6px;color:var(--gold,#c9a84c);font-size:.83rem;font-weight:600;"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <button class="cl-bg" id="docBtnSubir" onclick="subirDocumento()">
+              <i class="fas fa-upload me-2"></i>Subir Documento
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cl-card">
+        <div class="cl-ct"><i class="fas fa-archive me-2"></i>Documentos Subidos</div>
+        <div id="docLista" style="margin-top:12px;min-height:80px;display:flex;align-items:center;justify-content:center;">
+          <span style="color:#aaa;font-size:.88rem;">Haz clic en "Mis Documentos" para cargar.</span>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 </div>
@@ -860,4 +920,103 @@ if(fci) fci.min = new Date().toISOString().split('T')[0];
 // Auto-open agendar if propId in URL
 const up = new URLSearchParams(window.location.search);
 if(up.get('propId') && INIT_TAB !== 'agendar') gt('agendar');
+
+// ═══ DOCUMENTOS JS ═══
+document.getElementById('docArchivo') && document.getElementById('docArchivo').addEventListener('change', function() {
+  if(this.files[0]) {
+    document.getElementById('docFileName').textContent = '📎 ' + this.files[0].name;
+    document.getElementById('docDropZone').style.borderColor = '#c9a84c';
+  }
+});
+
+function docAlerta(msg, ok) {
+  var el = document.getElementById('docAlerta');
+  el.style.display = 'block';
+  el.style.background = ok ? '#e8f5e9' : '#ffebee';
+  el.style.color = ok ? '#2e7d32' : '#c62828';
+  el.style.border = '1px solid ' + (ok ? '#a5d6a7' : '#ef9a9a');
+  el.innerHTML = (ok ? '<i class="fas fa-check-circle me-2"></i>' : '<i class="fas fa-exclamation-circle me-2"></i>') + msg;
+}
+
+function subirDocumento() {
+  var archivo = document.getElementById('docArchivo').files[0];
+  var tipo    = document.getElementById('docTipo').value;
+  if (!archivo) { docAlerta('Selecciona un archivo.', false); return; }
+  if (!tipo)    { docAlerta('Selecciona el tipo de documento.', false); return; }
+  if (archivo.size > 5*1024*1024) { docAlerta('El archivo supera 5MB.', false); return; }
+
+  var btn = document.getElementById('docBtnSubir');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Subiendo...';
+
+  // Enviar datos sin multipart (nombre del archivo + tipo)
+  var params = new URLSearchParams();
+  params.append('tipoDoc', tipo);
+  params.append('nombreArchivo', archivo.name);
+  params.append('propiedadTitulo', document.getElementById('docPropiedad').value);
+
+  fetch('guardar-documento.jsp', { method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: params.toString() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.ok) {
+        docAlerta('Documento subido correctamente.', true);
+        document.getElementById('docArchivo').value = '';
+        document.getElementById('docFileName').textContent = '';
+        document.getElementById('docDropZone').style.borderColor = 'rgba(201,168,76,.4)';
+        document.getElementById('docTipo').value = '';
+        cargarMisDocumentos();
+      } else {
+        docAlerta('Error: ' + (d.error || 'desconocido'), false);
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload me-2"></i>Subir Documento';
+    })
+    .catch(function(){
+      docAlerta('No se pudo conectar con el servidor.', false);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload me-2"></i>Subir Documento';
+    });
+}
+
+function cargarMisDocumentos() {
+  var lista = document.getElementById('docLista');
+  if (!lista) return;
+  lista.innerHTML = '<span style="color:#aaa;font-size:.88rem;"><i class="fas fa-spinner fa-spin me-2"></i>Cargando...</span>';
+  fetch('listar-documentos.jsp')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.docs || d.docs.length === 0) {
+        lista.innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;"><i class="fas fa-folder-open" style="font-size:2rem;display:block;margin-bottom:8px;"></i><p style="margin:0;font-size:.86rem;">Aún no has subido documentos.</p></div>';
+        return;
+      }
+      var html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
+        + '<thead><tr style="border-bottom:2px solid #f0f0f0;">'
+        + '<th style="padding:10px;text-align:left;font-size:.72rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Archivo</th>'
+        + '<th style="padding:10px;text-align:left;font-size:.72rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Tipo</th>'
+        + '<th style="padding:10px;text-align:left;font-size:.72rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Fecha</th>'
+        + '</tr></thead><tbody>';
+      d.docs.forEach(function(doc){
+        html += '<tr style="border-bottom:1px solid #f5f5f5;">'
+          + '<td style="padding:11px 10px;font-size:.86rem;"><i class="fas fa-file-alt me-2" style="color:#c9a84c;"></i>' + doc.nombre + '</td>'
+          + '<td style="padding:11px 10px;"><span style="background:rgba(201,168,76,.1);color:#c9a84c;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;">' + doc.tipo + '</span></td>'
+          + '<td style="padding:11px 10px;font-size:.78rem;color:#aaa;">' + doc.fecha + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+      lista.innerHTML = html;
+    })
+    .catch(function(){
+      lista.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;font-size:.86rem;">No se pudieron cargar los documentos.</p>';
+    });
+}
+
+// Interceptar click en Mis Documentos para cargar lista
+(function(){
+  var btnDoc = document.getElementById('sl-documentos');
+  var btnDocMb = document.getElementById('mb-documentos');
+  if(btnDoc) btnDoc.addEventListener('click', function(){ setTimeout(cargarMisDocumentos, 150); });
+  if(btnDocMb) btnDocMb.addEventListener('click', function(){ setTimeout(cargarMisDocumentos, 150); });
+})();
 </script>
